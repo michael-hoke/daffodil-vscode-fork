@@ -23,6 +23,7 @@ import * as child_process from 'child_process'
 import path from 'path'
 
 const wait_port = require('wait-port')
+import { TDMLConfig } from './adapter/activateDaffodilDebug'
 
 const defaultConf = vscode.workspace.getConfiguration()
 let currentConfig: vscode.DebugConfiguration
@@ -88,6 +89,7 @@ export function getConfig(
   debugServer: number | boolean = false,
   infosetFormat: string | null = null,
   infosetOutput: object | null = null,
+  tdmlConfig: TDMLConfig | null = null,
   stopOnEntry = false,
   useExistingServer = false,
   trace = false,
@@ -116,6 +118,17 @@ export function getConfig(
             'infosetOutputFilePath',
             '${workspaceFolder}/infoset.xml'
           ),
+        },
+    tdmlConfig: tdmlConfig
+      ? tdmlConfig
+      : {
+          action: defaultConf.get('tdmlAction', 'none'),
+          name: defaultConf.get('tdmlName', '${command:AskforTDMLName}'),
+          description: defaultConf.get(
+            'tdmlDescription',
+            '${command:AskForTDMLDescription}'
+          ),
+          path: defaultConf.get('tdmlPath', '${workspaceFolder}/infoset.tdml'),
         },
     stopOnEntry: stopOnEntry
       ? stopOnEntry
