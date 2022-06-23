@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<xs:schema
+  targetNamespace="http://www.ogf.org/dfdl/dfdl-1.0/extensions"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+  xmlns:dfdlx="http://www.ogf.org/dfdl/dfdl-1.0/extensions"
+  xmlns:daf="urn:ogf:dfdl:2013:imp:daffodil.apache.org:2018:ext"
+  xmlns:dafint="urn:ogf:dfdl:2013:imp:daffodil.apache.org:2018:int"
+  attributeFormDefault="unqualified"
+  elementFormDefault="qualified">
+
+  <xs:import namespace="urn:ogf:dfdl:2013:imp:daffodil.apache.org:2018:int"/>
+  <xs:import namespace="http://www.ogf.org/dfdl/dfdl-1.0/"/>
+
+  <!-- dfdl:property="..." extension values. Extension properties must start with dfdlx: -->
+
+  <xs:simpleType name="PropertyNameType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="dfdlx:alignmentKind" />
+      <xs:enumeration value="dfdlx:choiceBranchKeyRanges" />
+      <xs:enumeration value="dfdlx:emptyElementParsePolicy"/>
+      <xs:enumeration value="dfdlx:inputTypeCalc"/>
+      <xs:enumeration value="dfdlx:objectKind"/>
+      <xs:enumeration value="dfdlx:outputTypeCalc"/>
+      <xs:enumeration value="dfdlx:parseUnparsePolicy"/>
+      <xs:enumeration value="dfdlx:repType"/>
+      <xs:enumeration value="dfdlx:repValueRanges"/>
+      <xs:enumeration value="dfdlx:repValues"/>
+      <xs:enumeration value="dfdlx:runtimeProperties"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+
+  <xs:attribute name="alignmentKind" type="dfdlx:AlignmentKindEnum" default="automatic">
+    <xs:annotation>
+      <xs:documentation><![CDATA[
+        If manual, then the dfdl:alignment property is ignored, and all alignment must be done
+        manually by way of dfdl:leadingSkip, dfdl:trailingSkip, or just arranging for elements
+        that have the right size such that alignment is correct.
+
+        The dfdl:alignmentUnits property still applies and is used with dfdl:leadingSkip and dfdl:trailingSkip.
+
+        This property helps overcome limitations of the Daffodil schema compiler where it attempts to optimize
+        out normal alignment regions, but is unable to, resulting in the inability to unparse some formats.
+
+        For all constructs in the scope of this property, there will be no alignment regions created,
+        and charset encodings will not have mandatory text alignment of their characters.
+
+        Since this is a new extension property that is experimental, it will have a default value of "automatic".
+        ]]></xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+
+  <xs:simpleType name="AlignmentKindEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="automatic" />
+      <xs:enumeration value="manual" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attribute name="parseUnparsePolicy" type="dfdlx:ParseUnparsePolicyEnum"/>
+  <xs:simpleType name="ParseUnparsePolicyEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="both" />
+      <xs:enumeration value="parseOnly" />
+      <xs:enumeration value="unparseOnly" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attribute name="direction" type="dfdlx:VariableDirectionEnum"/>
+  <xs:simpleType name="VariableDirectionEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="both" />
+      <xs:enumeration value="parseOnly" />
+      <xs:enumeration value="unparseOnly" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attribute name="emptyElementParsePolicy" type="dfdlx:EmptyElementParsePolicyEnum"/>
+  <xs:simpleType name="EmptyElementParsePolicyEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="treatAsEmpty" />
+      <xs:enumeration value="treatAsMissing" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:attribute name="choiceBranchKeyRanges" type="dfdl:NonEmptyListOfInteger" />
+
+  <xs:attributeGroup name="SimpleTypeValueCalcAG">
+    <xs:attribute form="qualified" name="repType" type="dfdl:DFDLQName" />
+    <xs:attribute form="qualified" name="inputTypeCalc" type="dfdl:DFDLExpression" />
+    <xs:attribute form="qualified" name="outputTypeCalc" type="dfdl:DFDLExpression" />
+    <xs:attributeGroup ref="dfdlx:RepValuesAG" />
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="RepValuesAG">
+    <xs:attribute form="qualified" name="repValues" type="dfdl:NonEmptyListofDFDLStringLiteralOrNonEmptyListOfInteger" />
+    <xs:attribute form="qualified" name="repValueRanges" type="dfdl:NonEmptyListOfInteger" />
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="SimpleTypeValueCalcAGQualified">
+    <xs:attribute form="qualified" name="repType" type="dfdl:DFDLQName" />
+    <xs:attribute form="qualified" name="inputTypeCalc" type="dfdl:DFDLExpression" />
+    <xs:attribute form="qualified" name="outputTypeCalc" type="dfdl:DFDLExpression" />
+    <xs:attributeGroup ref="dfdlx:RepValuesAGQualified" />
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="RepValuesAGQualified">
+    <xs:attribute form="qualified" name="repValues" type="dfdl:NonEmptyListofDFDLStringLiteralOrNonEmptyListOfInteger" />
+    <xs:attribute form="qualified" name="repValueRanges" type="dfdl:NonEmptyListOfInteger" />
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="ExtLayeringAGQualified">
+    <xs:attribute form="qualified" name="layerTransform" type="dfdlx:LayerTransformType" />
+    <xs:attribute form="qualified" name="layerEncoding" type="dfdl:EncodingEnum_Or_DFDLExpression" />
+    <xs:attribute form="qualified" name="layerLengthKind" type="dfdlx:LayerLengthKindEnum" />
+    <xs:attribute form="qualified" name="layerLength" type="dfdl:DFDLNonNegativeInteger_Or_DFDLExpression" />
+    <xs:attribute form="qualified" name="layerLengthUnits" type="dfdlx:LayerLengthUnitsEnum" />
+    <xs:attribute form="qualified" name="layerBoundaryMark" type="dfdl:ListOfDFDLStringLiteral_Or_DFDLExpression" />
+  </xs:attributeGroup>
+
+
+  <xs:simpleType name="LayerTransformType">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base="dfdlx:LayerTransformEnum" />
+      </xs:simpleType>
+      <xs:simpleType>
+        <xs:restriction base="xs:NCName" /><!-- for dynamically loaded layers -->
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <xs:simpleType name="LayerTransformEnum">
+    <xs:restriction base="xs:token">
+      <xs:enumeration value="fourbyteswap">
+        <xs:annotation>
+          <xs:documentation>
+            Swap bytes in 32 bit words.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="base64_MIME">
+        <xs:annotation>
+          <xs:documentation>
+            IETF RFC 2045
+
+            Max line length 76 characters.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="lineFolded_IMF">
+        <xs:annotation>
+          <xs:documentation><![CDATA[
+             IETF RFC 2822 Internet Message Format (IMF)
+
+             Each line of characters MUST be no more than
+             998 characters, and SHOULD be no more than 78 characters, excluding
+             the CRLF.
+
+             Though structured field bodies are defined in such a way that
+             folding can take place between many of the lexical tokens (and even
+             within some of the lexical tokens), folding SHOULD be limited to
+             placing the CRLF at higher-level syntactic breaks.  For instance, if
+             a field body is defined as comma-separated values, it is recommended
+             that folding occur after the comma separating the structured items in
+             preference to other places where the field could be folded, even if
+             it is allowed elsewhere.
+
+             Unfolding is accomplished by simply removing any CRLF
+             that is immediately followed by WSP.
+             ]]>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="lineFolded_iCalendar">
+        <xs:annotation>
+          <xs:documentation><![CDATA[
+             IETF RFC 5545 Internet Calendaring and Scheduling (iCalendar)
+
+             Lines of text SHOULD NOT be longer than 75 octets, excluding the line
+             break.  Long content lines SHOULD be split into a multiple line
+             representations using a line "folding" technique.  That is, a long
+             line can be split between any two characters by inserting a CRLF
+             immediately followed by a single linear white-space character (i.e.,
+             SPACE or HTAB).  Any sequence of CRLF followed immediately by a
+             single linear white-space character is ignored (i.e., removed) when
+             processing the content type.
+             ]]>
+          </xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="gzip">
+        <xs:annotation>
+          <xs:documentation>
+            GZIP per https://www.ietf.org/rfc/rfc1952.txt
+          </xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="LayerLengthUnitsEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="bytes" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="LayerLengthKindEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="explicit" />
+      <xs:enumeration value="boundaryMark" />
+      <xs:enumeration value="implicit" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attributeGroup name="ObjectKindAG">
+    <xs:attribute form="qualified" name="objectKind" type="dfdlx:ObjectKindType" />
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="ObjectKindAGQualified">
+    <xs:attribute form="qualified" name="objectKind" type="dfdlx:ObjectKindType" />
+  </xs:attributeGroup>
+
+  <xs:simpleType name="ObjectKindType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="bytes"/>
+      <xs:enumeration value="chars"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attributeGroup name="RuntimePropertiesAG">
+    <xs:attribute form="qualified" name="runtimeProperties" type="dfdlx:RuntimePropertiesType" />
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="RuntimePropertiesAGQualified">
+    <xs:attribute form="qualified" name="runtimeProperties" type="dfdlx:RuntimePropertiesType" />
+  </xs:attributeGroup>
+
+  <xs:simpleType name="RuntimePropertiesType">
+    <xs:restriction base="dfdlx:KVList" />
+  </xs:simpleType>
+
+  <xs:simpleType name="KVList">
+    <xs:list>
+      <xs:simpleType>
+        <xs:restriction base="xs:token">
+          <xs:pattern value="[a-zA-Z_][a-zA-Z0-9_]*=\S*"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:list>
+  </xs:simpleType>
+
+</xs:schema>
