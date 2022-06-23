@@ -1,0 +1,55 @@
+<jxb:bindings version="2.1"
+          xmlns:tdml="http://www.ibm.com/xmlns/dfdl/testData"
+          xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+          xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+          xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <jxb:bindings schemaLocation="resources/xsd/DFDL_part3_model.xsd" version="1.0">
+        <jxb:bindings node="//xs:attributeGroup[@name='SetVariableAG']/xs:attribute[@name='value']">
+            <jxb:property name="ValueAttribute"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:element[@name='simpleType']">
+            <jxb:class name="simpleTypeClass"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:element[@name='group']">
+            <jxb:class name="groupClass"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:element[@name='choice']">
+            <jxb:class name="choiceClass"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:element[@name='sequence']">
+            <jxb:class name="sequenceClass"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:element[@name='element']">
+            <jxb:class name="elementClass"/>
+        </jxb:bindings>
+    </jxb:bindings>
+    <jxb:bindings schemaLocation="resources/xsd/DFDL_part2_attributes.xsd" version="1.0">
+        <jxb:bindings node="//xs:attributeGroup[@name='BaseAGQualified']/xs:attribute[@name='ref']">
+            <jxb:property name="RefAttribute"/>
+        </jxb:bindings>
+    </jxb:bindings>
+    <jxb:bindings schemaLocation="resources/xsd/DFDL_part1_simpletypes.xsd" version="1.0">
+        <jxb:bindings node="//xs:simpleType[@name='ByteOrderEnum']">
+            <jxb:typesafeEnumClass name="ByteOrderEnumType"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:simpleType[@name='BitOrderEnum']">
+            <jxb:typesafeEnumClass name="BitOrderEnumType"/>
+        </jxb:bindings>
+    </jxb:bindings>
+    <jxb:bindings schemaLocation="resources/xsd/dafext.xsd" version="1.0">
+        <jxb:bindings node="//xs:attribute[@name='parseUnparsePolicy']">
+            <jxb:property name="ParseUnparsePolicyExt"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:simpleType[@name='PropertyNameType']">
+            <jxb:typesafeEnumClass name="PropertyNameTypeExt"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xs:complexType[@name='PropertyType']">
+            <jxb:class name="PropertyTypeClass"/>
+        </jxb:bindings>
+    </jxb:bindings>
+    <jxb:bindings schemaLocation="resources/xsd/dfdlx.xsd" version="1.0">
+        <jxb:bindings node="//xs:simpleType[@name='PropertyNameType']">
+            <jxb:typesafeEnumClass name="PropertyNameTypeX"/>
+        </jxb:bindings>
+    </jxb:bindings>
+</jxb:bindings>

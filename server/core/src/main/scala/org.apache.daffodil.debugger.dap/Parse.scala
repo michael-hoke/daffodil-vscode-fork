@@ -46,6 +46,7 @@ import org.apache.daffodil.util.Misc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.util.Try
+import org.apache.commons.io.output.NullOutputStream
 
 trait Parse {
 
@@ -316,6 +317,26 @@ object Parse {
               case ec                                => Logger[IO].debug(s"deliverParseData: $ec")
             } ++ Stream.eval(
               dapEvents.offer(None) // ensure dapEvents is terminated when the parse is terminated
+            ) ++ Stream.eval(
+              args.infosetOutput match {
+                case Debugee.LaunchArgs.InfosetOutput.File(path) =>
+                 // if (Debugee.LaunchArgs.InfosetOutput.File(path))
+                  /* Resource.make {
+                    IO(new FileOutputStream(path.toFile()))
+                  } { outStream =>
+                    IO(outStream.close()).handleErrorWith(_ => IO.unit)
+                  } */
+                  IO(new FileOutputStream(path.toFile()))
+                  // path.toString()
+                case _ =>
+                  /* Resource.make {
+                    IO(new ByteArrayOutputStream(0))
+                  } { outStream =>
+                    IO(outStream.close()).handleErrorWith(_ => IO.unit)  
+                  } */
+                  IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
+                  // ""
+              }
             ),
             infosetChanges
           ).parJoinUnbounded

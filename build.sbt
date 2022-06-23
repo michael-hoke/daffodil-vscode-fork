@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+import com.github.retronym.sbtxjc.SbtXjcPlugin
 import play.api.libs.json._
 
 lazy val packageData = Json.parse(scala.io.Source.fromFile("./package.json").mkString).as[JsObject]
@@ -44,7 +45,8 @@ lazy val commonSettings = {
     // remove the -Xcheckinit option added by the sbt tpoletcat plugin. This
     // option leads to non-reproducible builds
     scalacOptions --= Seq("-Xcheckinit"),
-    startYear := Some(2021)
+    startYear := Some(2021),
+    javaSource := file("server/sbtXjc/target/scala-2.12/src_managed_cxf/org/apache/daffodil/tdml")
   )
 }
 
@@ -69,6 +71,8 @@ lazy val `daffodil-debugger` = project
   .settings(publish / skip := true)
   .dependsOn(core)
   .aggregate(core)
+  .dependsOn(sbtXjcProject)
+  .aggregate(sbtXjcProject)
 
 lazy val core = project
   .in(file("server/core"))
@@ -87,3 +91,24 @@ lazy val core = project
     packageName := s"${name.value}-$daffodilVer"
   )
   .enablePlugins(commonPlugins: _*)
+
+lazy val sbtXjcProject = project
+  .in(file("server/sbtXjc"))
+  .enablePlugins(SbtXjcPlugin)
+  .settings(
+    name := "daffodil-xjc",
+    libraryDependencies ++= Seq(
+      "javax.activation" % "activation" % "1.1.1",
+      "com.sun.xml.bind" % "jaxb-xjc" % "2.1.6",
+      // "org.relaxng" % "jing" % "20220510" % "runtime",
+
+      // "com.sun.istack" % "istack-commons-tools" % "4.1.1"
+    ),
+    xjcCommandLine += "-nv",
+    xjcCommandLine += "-p",
+    xjcCommandLine += "org.apache.daffodil.tdml",
+    xjcBindings += "bindings.xjb",
+    xjcJvmOpts += "-classpath",
+    xjcJvmOpts += s"${csrCacheDirectory.value}/https/repo1.maven.org/maven2/javax/activation/activation/1.1.1/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/javax/activation/javax.activation-api/1.2.0/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/org/glassfish/jaxb/txw2/2.2.11/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/relaxngDatatype/relaxngDatatype/20020414/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/com/sun/xsom/xsom/20140925/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/com/sun/xml/bind/external/rngom/2.2.11/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/com/sun/istack/istack-commons-runtime/2.21/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/org/glassfish/jaxb/codemodel/2.2.11/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/org/glassfish/jaxb/jaxb-core/2.2.11/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/javax/xml/bind/jaxb-api/2.1/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/com/sun/istack/istack-commons-tools/2.21/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/org/glassfish/jaxb/jaxb-xjc/2.2.11/*:${csrCacheDirectory.value}/https/repo1.maven.org/maven2/com/sun/xml/bind/jaxb-impl/2.2.11/*",
+    Compile / xjc / sources := Seq(file("resources/xsd"))
+  )

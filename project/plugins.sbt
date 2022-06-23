@@ -21,3 +21,6 @@ addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.17")
 addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.3")
 addSbtPlugin("com.github.battermann" % "sbt-json" % "0.5.0")
+addSbtPlugin("org.scala-sbt.plugins" % "sbt-xjc" % "0.10")
+
+// resolvers += "Java Net" at "http://download.java.net/maven/2/"
