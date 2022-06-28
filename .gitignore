@@ -25,6 +25,7 @@ node_modules
 # sbt
 target
 .bsp
+.bloop
 
 # npm install file
 package-lock.json
