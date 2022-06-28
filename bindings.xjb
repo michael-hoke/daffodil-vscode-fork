@@ -3,6 +3,9 @@
           xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <jxb:globalBindings>
+        <jxb:serializable uid="1" />
+    </jxb:globalBindings>
     <jxb:bindings schemaLocation="resources/xsd/DFDL_part3_model.xsd" version="1.0">
         <jxb:bindings node="//xs:attributeGroup[@name='SetVariableAG']/xs:attribute[@name='value']">
             <jxb:property name="ValueAttribute"/>

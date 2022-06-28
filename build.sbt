@@ -71,8 +71,6 @@ lazy val `daffodil-debugger` = project
   .settings(publish / skip := true)
   .dependsOn(core)
   .aggregate(core)
-  .dependsOn(sbtXjcProject)
-  .aggregate(sbtXjcProject)
 
 lazy val core = project
   .in(file("server/core"))
@@ -91,6 +89,8 @@ lazy val core = project
     packageName := s"${name.value}-$daffodilVer"
   )
   .enablePlugins(commonPlugins: _*)
+  .dependsOn(sbtXjcProject)
+  .aggregate(sbtXjcProject)
 
 lazy val sbtXjcProject = project
   .in(file("server/sbtXjc"))

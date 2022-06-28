@@ -185,6 +185,20 @@ export async function getDebugger(
         return stopDebugging()
       }
 
+      if (config.tdmlConfig.action !== 'none') {
+        if (config.tdmlName === '') {
+          config.tdmlName = await vscode.commands.executeCommand(
+            'extension.dfdl-debug.getTDMLName'
+          )
+        }
+
+        if (config.tdmlDescription === '') {
+          config.tdmlDescription = await vscode.commands.executeCommand(
+            'extension.dfdl-debug.getTDMLDescription'
+          )
+        }
+      }
+
       let workspaceFolder = vscode.workspace.workspaceFolders
         ? vscode.workspace.workspaceFolders[0].uri.fsPath
         : vscode.Uri.parse('').fsPath
