@@ -45,8 +45,7 @@ lazy val commonSettings = {
     // remove the -Xcheckinit option added by the sbt tpoletcat plugin. This
     // option leads to non-reproducible builds
     scalacOptions --= Seq("-Xcheckinit"),
-    startYear := Some(2021),
-    javaSource := file("server/sbtXjc/target/scala-2.12/src_managed_cxf/org/apache/daffodil/tdml")
+    startYear := Some(2021)
   )
 }
 
