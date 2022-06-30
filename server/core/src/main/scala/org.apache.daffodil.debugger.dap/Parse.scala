@@ -679,9 +679,9 @@ object Parse {
         }
     }
     sealed trait TDMLConfig {
-      val `action`: String
-      val `name`: String
-      val `description`: String
+      val action: String
+      val name: String
+      val description: String
     }
     object InfosetOutput {
       case object None extends InfosetOutput
