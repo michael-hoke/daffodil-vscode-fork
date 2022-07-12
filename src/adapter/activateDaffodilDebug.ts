@@ -28,7 +28,7 @@ import * as dfdlLang from '../language/dfdl'
 function createDebugRunFileConfigs(
   resource: vscode.Uri,
   runOrDebug: String,
-  tdmlConfig: TDMLConfig | undefined
+  tdmlAction: String | undefined
 ) {
   let targetResource = resource
   let noDebug = runOrDebug === 'run' ? true : false
@@ -41,6 +41,12 @@ function createDebugRunFileConfigs(
       path.basename(targetResource.fsPath).split('.')[0]
     }-infoset.xml`
     vscode.window.showInformationMessage(infosetFile)
+
+    var tdmlConfig = <TDMLConfig>{}
+
+    if (tdmlAction) {
+      tdmlConfig.action = tdmlAction
+    }
 
     vscode.debug.startDebugging(
       undefined,
@@ -93,7 +99,7 @@ export function activateDaffodilDebug(
     vscode.commands.registerCommand(
       'extension.dfdl-debug.generateTDML',
       (resource: vscode.Uri) => {
-        null // TODO
+        createDebugRunFileConfigs(resource, 'run', 'generate')
       }
     ),
     vscode.commands.registerCommand(
@@ -439,8 +445,8 @@ class InlineDebugAdapterFactory
 }
 
 export interface TDMLConfig {
-  generate: boolean
-  append: boolean
-  name: string
-  description: string
+  action: String
+  name: String
+  description: String
+  path: String
 }

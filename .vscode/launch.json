@@ -29,7 +29,7 @@
 			"outFiles": [
 				"${workspaceFolder}/dist/ext/**/*.js"
 			],
-			"preLaunchTask": "npm: watch",
+			"preLaunchTask": "npm: watch"
 		},
 		{
 			"name": "Tests",
@@ -48,6 +48,15 @@
 			],
 			"internalConsoleOptions": "openOnSessionStart",
 			"preLaunchTask": "npm: compile"
+		},
+		{
+			"type": "scala",
+			"request": "launch",
+			"name": "DAPodil",
+			"mainClass": "org.apache.daffodil.debugger.dap.DAPodil",
+			"args": [],
+			"jvmOptions": [],
+			"env": {}
 		}
 	]
 }
