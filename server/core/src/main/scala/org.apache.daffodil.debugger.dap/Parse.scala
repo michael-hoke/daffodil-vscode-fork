@@ -47,7 +47,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.util.Try
 // import org.apache.commons.io.output.NullOutputStream
-// import org.apache.daffodil.tdml.TDML
+import org.apache.daffodil.tdml.TDML
 
 trait Parse {
 
@@ -355,12 +355,12 @@ object Parse {
               dapEvents.offer(None) // ensure dapEvents is terminated when the parse is terminated
             ) ++ Stream.eval(
               args.tdmlConfig match {
-                case Debugee.LaunchArgs.TDMLConfig.Config(action, _, _, _) =>
+                case Debugee.LaunchArgs.TDMLConfig.Config(action, name, description, tdmlPath) =>
                   if (action == "generate")
                     args.infosetOutput match {
-                      case Debugee.LaunchArgs.InfosetOutput.File(_) =>
-                        Logger[IO].debug("Makes it into the generate")
-                        // TDML.generate(path.toString(), args.dataPath.toString(), args.schemaPath.toString(), name, description, tdmlPath)
+                      case Debugee.LaunchArgs.InfosetOutput.File(path) =>
+                        // Logger[IO].debug("Getting ready to generate")
+                        IO(TDML.generate(path.toString(), args.dataPath.toString(), args.schemaPath.toString(), name, description, tdmlPath))
                       case _ =>
                         Logger[IO].debug("Non-file InfosetOutput")
                         // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))

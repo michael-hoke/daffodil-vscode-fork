@@ -4,9 +4,14 @@ import javax.xml.bind.JAXBContext
 import java.io.FileOutputStream
 import cats.effect.IO
 import java.io.File
+import javax.xml.bind.Marshaller
+
+// import org.typelevel.log4cats.Logger
+// import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 // TODO: Put TDML path in class definition?
 object TDML {
+  // implicit val logger: Logger[IO] = Slf4jLogger.getLogger
   // Create a ParserTestCaseType object that can be put into a TestSuite
   // These types are generated when JAXB is executed on the TDML schema
   // 
@@ -28,7 +33,7 @@ object TDML {
   // tdmlDescription: Description for the DFDL operation
   // 
   // Returns the ParserTestCase object created with the applied paths
-  def createTestCase(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String) = {
+  def createTestCase(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String): ParserTestCaseType = {
     val factory = new ObjectFactory()
 
     val dfdlInfoset = factory.createDfdlInfosetType()
@@ -40,7 +45,8 @@ object TDML {
 
     val docPart = factory.createDocumentPartType()
     docPart.setType(DocumentPartTypeEnum.FILE)
-    docPart.setValue(dataPath.toString())
+    // The following line causes the output of the marshalling to be empty
+    docPart.setValue(dataPath)
 
     val doc = factory.createDocumentType()
     doc.getContent().add(docPart)
@@ -53,6 +59,8 @@ object TDML {
     testCase.setRoundTrip(RoundTripType.ONE_PASS)
     testCase.getTutorialOrDocumentOrInfoset().add(doc)
     testCase.getTutorialOrDocumentOrInfoset().add(infoset)
+
+    return testCase
   }
 
   // Generate a new TDML file.
@@ -68,7 +76,8 @@ object TDML {
   // 
   // There is a suiteName attribute in the root element of the document. This is set to $tdmlName
   // TODO: I think the return type here should just be Unit
-  def generate(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String, tdmlPath: String): IO[Unit] = {
+  def generate(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String, tdmlPath: String): Unit = {
+    // Logger[IO].debug("Generating")
     val factory = new ObjectFactory()
 
     val testSuite = factory.createTestSuite()
@@ -76,7 +85,15 @@ object TDML {
     testSuite.setDefaultRoundTrip(RoundTripType.ONE_PASS)
     testSuite.getTutorialOrParserTestCaseOrDefineSchema().add(createTestCase(infosetPath, dataPath, schemaPath, tdmlName, tdmlDescription))
 
-    IO(JAXBContext.newInstance(classOf[TestSuite]).createMarshaller().marshal(testSuite, new FileOutputStream(tdmlPath)))
+    // Logger[IO].debug("Getting ready to send XML to file")
+    // val marshaller = JAXBContext.newInstance(classOf[TestSuite]).createMarshaller()
+    // marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true)
+    // marshaller.marshal(testSuite, new FileOutputStream(tdmlPath))
+    // JAXBContext.newInstance(classOf[TestSuite]).createMarshaller().marshal(testSuite, fos)
+    // val fos = new FileOutputStream(tdmlPath)
+    val marshaller = JAXBContext.newInstance(classOf[TestSuite]).createMarshaller()
+    marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true)
+    marshaller.marshal(testSuite, new java.io.File(tdmlPath))
   }
 
   // Append a new test case to an existing TDML file.
@@ -115,7 +132,18 @@ object TDML {
       // var foundInfoset = ""
 
       // TODO: Do I really have to cast to instances every time? I've already checked that they are...
-      if (tc.isInstanceOf[ParserTestCaseType]) {
+      tc match {
+        case ptc: ParserTestCaseType =>
+          if (ptc.getName() == tdmlName && ptc.getDescription() == tdmlDescription) {
+            ptc.getTutorialOrDocumentOrInfoset().forEach { dis =>
+              dis match {
+                case doc: DocumentType =>
+                  return (ptc.getModel(), doc.getContent().indexOf(0).asInstanceOf[DocumentPartType].getValue())
+              }
+            }
+          }
+      }
+      /*if (tc.isInstanceOf[ParserTestCaseType]) {
         // Match name and description of potential test case
         if (tc.asInstanceOf[ParserTestCaseType].getName() == tdmlName && tc.asInstanceOf[ParserTestCaseType].getDescription() == tdmlDescription) {
           tc.asInstanceOf[ParserTestCaseType].getTutorialOrDocumentOrInfoset().forEach { dis =>
@@ -134,7 +162,7 @@ object TDML {
             // }
           }
         }
-      }
+      }*/
     }
 
     // If there is no test case in the TDML file meeting the name/description criteria, return empty
