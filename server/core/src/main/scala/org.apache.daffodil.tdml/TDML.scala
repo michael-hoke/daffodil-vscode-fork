@@ -45,10 +45,10 @@ object TDML {
 
     val docPart = factory.createDocumentPartType()
     docPart.setType(DocumentPartTypeEnum.FILE)
-    // The following line causes the output of the marshalling to be empty
     docPart.setValue(dataPath)
 
     val doc = factory.createDocumentType()
+    // The following line causes the output of the marshalling to be empty
     doc.getContent().add(docPart)
 
     val testCase = factory.createParserTestCaseType()
