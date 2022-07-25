@@ -1,17 +1,15 @@
 package org.apache.daffodil.tdml
 
-import javax.xml.bind.JAXBContext
-import java.io.FileOutputStream
-import cats.effect.IO
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Paths
+import javax.xml.bind.JAXBContext
+import javax.xml.bind.JAXBElement
 import javax.xml.bind.Marshaller
+import javax.xml.namespace.QName
+import javax.xml.bind.annotation.XmlType
 
-// import org.typelevel.log4cats.Logger
-// import org.typelevel.log4cats.slf4j.Slf4jLogger
-
-// TODO: Put TDML path in class definition?
 object TDML {
-  // implicit val logger: Logger[IO] = Slf4jLogger.getLogger
   // Create a ParserTestCaseType object that can be put into a TestSuite
   // These types are generated when JAXB is executed on the TDML schema
   // 
@@ -47,9 +45,17 @@ object TDML {
     docPart.setType(DocumentPartTypeEnum.FILE)
     docPart.setValue(dataPath)
 
+    // These lines are necessary because there is no @XmlRootElement annotation on the DocumentPartType class in JAXB
+    // Ideally, we would want to have JAXB add the annotation - probably with the bindings.xjb file. The only way I found
+    //   that did that required an external plugin just to add the annotation (https://github.com/highsource/jaxb2-annotate-plugin).
+    // We are getting the namespace from the JAXB class so that we don't have to hard-code it here
+    // Unfortunately, it seems like hard-coding the class name isn't an easy thing to avoid. There is a name in the XmlType
+    //   annotation, but it is documentPartType instead of documentPart. We would need to remove the Type from this anyway.
+    val tdmlNamespacePrefix = classOf[DocumentPartType].getAnnotation(classOf[XmlType]).namespace()
+    val docPartElement = new JAXBElement[DocumentPartType](new QName(tdmlNamespacePrefix, "documentPart"), classOf[DocumentPartType], docPart)
+
     val doc = factory.createDocumentType()
-    // The following line causes the output of the marshalling to be empty
-    doc.getContent().add(docPart)
+    doc.getContent().add(docPartElement)
 
     val testCase = factory.createParserTestCaseType()
     testCase.setName(tdmlName)
@@ -74,10 +80,8 @@ object TDML {
   // tdmlDescription: Description for the DFDL operation
   // tdmlPath:        Path to the TDML file
   // 
-  // There is a suiteName attribute in the root element of the document. This is set to $tdmlName
-  // TODO: I think the return type here should just be Unit
+  // There is a suiteName attribute in the root element of the document. This is set to tdmlName
   def generate(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String, tdmlPath: String): Unit = {
-    // Logger[IO].debug("Generating")
     val factory = new ObjectFactory()
 
     val testSuite = factory.createTestSuite()
@@ -85,12 +89,6 @@ object TDML {
     testSuite.setDefaultRoundTrip(RoundTripType.ONE_PASS)
     testSuite.getTutorialOrParserTestCaseOrDefineSchema().add(createTestCase(infosetPath, dataPath, schemaPath, tdmlName, tdmlDescription))
 
-    // Logger[IO].debug("Getting ready to send XML to file")
-    // val marshaller = JAXBContext.newInstance(classOf[TestSuite]).createMarshaller()
-    // marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true)
-    // marshaller.marshal(testSuite, new FileOutputStream(tdmlPath))
-    // JAXBContext.newInstance(classOf[TestSuite]).createMarshaller().marshal(testSuite, fos)
-    // val fos = new FileOutputStream(tdmlPath)
     val marshaller = JAXBContext.newInstance(classOf[TestSuite]).createMarshaller()
     marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true)
     marshaller.marshal(testSuite, new java.io.File(tdmlPath))
@@ -105,15 +103,13 @@ object TDML {
   // tdmlName:        Name of the DFDL operation
   // tdmlDescription: Description for the DFDL operation
   // tdmlPath:        Path to the TDML file
-  // 
-  // TODO: I think the return type here should just be Unit
-  def append(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String, tdmlPath: String): IO[Unit] = {
+  def append(infosetPath: String, dataPath: String, schemaPath: String, tdmlName: String, tdmlDescription: String, tdmlPath: String): Unit = {
 
     val testSuite = JAXBContext.newInstance(classOf[TestSuite]).createUnmarshaller().unmarshal(new File(tdmlPath)).asInstanceOf[TestSuite]
 
     testSuite.getTutorialOrParserTestCaseOrDefineSchema().add(createTestCase(infosetPath, dataPath, schemaPath, tdmlName, tdmlDescription))
 
-    IO(JAXBContext.newInstance(classOf[TestSuite]).createMarshaller().marshal(testSuite, new FileOutputStream(tdmlPath)))
+    JAXBContext.newInstance(classOf[TestSuite]).createMarshaller().marshal(testSuite, new FileOutputStream(tdmlPath))
   }
 
   // Find the parameters needed to execute a DFDL parse based on the given TDML Parameters
@@ -128,41 +124,21 @@ object TDML {
     val testCaseList = JAXBContext.newInstance(classOf[TestSuite]).createUnmarshaller().unmarshal(new File(tdmlPath)).asInstanceOf[TestSuite].getTutorialOrParserTestCaseOrDefineSchema()
 
     testCaseList.forEach { tc =>
-      // var foundDoc = ""
-      // var foundInfoset = ""
-
-      // TODO: Do I really have to cast to instances every time? I've already checked that they are...
       tc match {
         case ptc: ParserTestCaseType =>
           if (ptc.getName() == tdmlName && ptc.getDescription() == tdmlDescription) {
             ptc.getTutorialOrDocumentOrInfoset().forEach { dis =>
               dis match {
                 case doc: DocumentType =>
-                  return (ptc.getModel(), doc.getContent().indexOf(0).asInstanceOf[DocumentPartType].getValue())
+                  // The right part of the tuple only takes the first DocumentPart inside the Document.
+                  // In the case that there are more than one, any extras will be ignored.
+                  val schemaPath = Paths.get(ptc.getModel()).toFile().getCanonicalPath()
+                  val dataPath = Paths.get(doc.getContent().get(0).asInstanceOf[JAXBElement[DocumentPartType]].getValue().getValue()).toFile().getCanonicalPath()
+                  return (schemaPath, dataPath)
               }
             }
           }
       }
-      /*if (tc.isInstanceOf[ParserTestCaseType]) {
-        // Match name and description of potential test case
-        if (tc.asInstanceOf[ParserTestCaseType].getName() == tdmlName && tc.asInstanceOf[ParserTestCaseType].getDescription() == tdmlDescription) {
-          tc.asInstanceOf[ParserTestCaseType].getTutorialOrDocumentOrInfoset().forEach { dis =>
-            if (dis.isInstanceOf[DocumentType]) {
-              // foundDoc = dis.asInstanceOf[DocumentType].getContent().indexOf(0).asInstanceOf[DocumentPartType].getValue()
-              // if (!foundInfoset.isEmpty()) {
-                // return (tc.asInstanceOf[ParserTestCaseType].getModel(), foundInfoset, foundDoc)
-              // }
-              return (tc.asInstanceOf[ParserTestCaseType].getModel(), dis.asInstanceOf[DocumentType].getContent().indexOf(0).asInstanceOf[DocumentPartType].getValue())
-            }
-            // else if (dis.isInstanceOf[InfosetType]) {
-              // foundInfoset = dis.asInstanceOf[InfosetType].getDfdlInfoset().getContent().indexOf(0).asInstanceOf[String]
-              // if (!foundDoc.isEmpty()) {
-                // return (tc.asInstanceOf[ParserTestCaseType].getModel(), foundInfoset, foundDoc)
-              // }
-            // }
-          }
-        }
-      }*/
     }
 
     // If there is no test case in the TDML file meeting the name/description criteria, return empty

@@ -46,8 +46,8 @@ import org.apache.daffodil.util.Misc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.util.Try
-// import org.apache.commons.io.output.NullOutputStream
-import org.apache.daffodil.tdml.TDML
+import org.apache.commons.io.output.NullOutputStream
+import org.apache.daffodil.tdml.TDMLWrapper
 
 trait Parse {
 
@@ -282,6 +282,22 @@ object Parse {
       infoset <- Resource.eval(Queue.bounded[IO, Option[String]](10)) // TODO: it's a bit incongruous to have a separate channel for infoset changes, vs. streaming Parse.Event values
       control <- Resource.eval(Control.stopped())
 
+      pathTuple = args.tdmlConfig match {
+        case Debugee.LaunchArgs.TDMLConfig.Config(action, name, description, tdmlPath) =>
+          if (action == "execute") {
+            TDMLWrapper.execute(args.schemaPath, args.dataPath, name, description, tdmlPath)
+          }
+          else
+            (args.schemaPath, args.dataPath)
+        case _ =>
+          (args.schemaPath, args.dataPath)
+      }
+
+      // pathTuple will start with the original values of these paths and will only get updated if
+      // these paths need to be changed.
+      args.schemaPath = pathTuple._1
+      args.dataPath = pathTuple._2
+
       latestData <- Stream.fromQueueNoneTerminated(data).holdResource(DAPodil.Data.empty)
 
       latestInfoset <- Resource.eval(SignallingRef[IO, String](""))
@@ -335,6 +351,7 @@ object Parse {
         breakpoints,
         control
       )
+
       startup = dapEvents.offer(Some(ConfigEvent(args))) *>
         (if (args.stopOnEntry)
            control.step() *> state.offer(
@@ -359,35 +376,21 @@ object Parse {
                   if (action == "generate")
                     args.infosetOutput match {
                       case Debugee.LaunchArgs.InfosetOutput.File(path) =>
-                        // Logger[IO].debug("Getting ready to generate")
-                        IO(TDML.generate(path.toString(), args.dataPath.toString(), args.schemaPath.toString(), name, description, tdmlPath))
+                        IO(TDMLWrapper.generate(path, args.dataPath, args.schemaPath, name, description, tdmlPath))
                       case _ =>
-                        Logger[IO].debug("Non-file InfosetOutput")
-                        // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
+                        IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
+                    }
+                  else if (action == "append")
+                    args.infosetOutput match {
+                      case Debugee.LaunchArgs.InfosetOutput.File(path) =>
+                        IO(TDMLWrapper.append(path, args.dataPath, args.schemaPath, name, description, tdmlPath))
+                      case _ =>
+                        IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
                     }
                   else
-                    Logger[IO].debug("TDMLConfig is not generate")
-                    // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))  
+                    IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))  
                 case _ =>
-                  Logger[IO].debug("Not sure why this is here")
-                  // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
-              /* args.infosetOutput match {
-                case Debugee.LaunchArgs.InfosetOutput.File(path) =>
-                  args.tdmlConfig match {
-                    // case Debugee.LaunchArgs.TDMLConfig.Config(action, name, description, tdmlPath) =>
-                      if (action == "generate")
-                        Logger[IO].debug("Makes it into the generate")
-                        // TDML.generate(path.toString(), args.dataPath.toString(), args.schemaPath.toString(), name, description, tdmlPath)
-                      else
-                        Logger[IO].debug("TDMLConfig is None")
-                        // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))  
-                    case _ =>
-                      Logger[IO].debug("Not sure why this is here")
-                      // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
-                  }
-                case _ =>
-                  Logger[IO].debug("Non-file InfosetOutput")
-                  // IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM)) */
+                  IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
               }
             ),
             infosetChanges
