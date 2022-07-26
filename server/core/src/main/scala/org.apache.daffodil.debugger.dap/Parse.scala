@@ -163,23 +163,13 @@ object Parse {
         infosetOutput: LaunchArgs.InfosetOutput,
         tdmlConfig: Option[LaunchArgs.TDMLConfig]
     ) extends Arguments {
-      def dataPath: Path =
+      lazy val (schemaPath: Path, dataPath: Path) =
         tdmlConfig
           .map {
             case LaunchArgs.TDMLConfig(_, name, description, path) =>
-              val (_, dataPath) = TDMLWrapper.execute(defaultSchemaPath, defaultDataPath, name, description, path)
-              dataPath
+              TDMLWrapper.execute(defaultSchemaPath, defaultDataPath, name, description, path)
           }
-          .getOrElse(defaultDataPath)
-
-      def schemaPath: Path =
-        tdmlConfig
-          .map {
-            case LaunchArgs.TDMLConfig(_, name, description, path) =>
-              val (schemaPath, _) = TDMLWrapper.execute(defaultSchemaPath, defaultDataPath, name, description, path)
-              schemaPath
-          }
-          .getOrElse(defaultSchemaPath)
+          .getOrElse(defaultSchemaPath -> defaultDataPath)
 
       def data: IO[InputStream] =
         IO.blocking(FileUtils.readFileToByteArray(dataPath.toFile))
