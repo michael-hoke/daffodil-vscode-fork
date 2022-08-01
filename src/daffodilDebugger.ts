@@ -186,14 +186,17 @@ export async function getDebugger(
       }
 
       if (config.tdmlConfig.action !== 'none') {
-        if (config.tdmlName === '') {
-          config.tdmlName = await vscode.commands.executeCommand(
+        if (
+          typeof config.tdmlConfig.name !== 'undefined' &&
+          config.tdmlConfig.name === ''
+        ) {
+          config.tdmlConfig.name = await vscode.commands.executeCommand(
             'extension.dfdl-debug.getTDMLName'
           )
         }
 
-        if (config.tdmlDescription === '') {
-          config.tdmlDescription = await vscode.commands.executeCommand(
+        if (config.tdmlConfig.description === '') {
+          config.tdmlConfig.description = await vscode.commands.executeCommand(
             'extension.dfdl-debug.getTDMLDescription'
           )
         }

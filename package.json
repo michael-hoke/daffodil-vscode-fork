@@ -469,6 +469,11 @@
             "description": "Description of the TDML Test Case",
             "default": "${command:AskForTDMLDescription}"
           },
+          "tdmlPath": {
+            "type": "string",
+            "description": "Path to output for TDML file (req: tdmlAction=generate)",
+            "default": "${workspaceFolder}/infoset.tdml"
+          },
           "infosetOutputType": {
             "type": "string",
             "description": "Destination for final Infoset (file | 'console' | 'none')",

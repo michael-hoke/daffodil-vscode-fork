@@ -166,8 +166,9 @@ object Parse {
       lazy val (schemaPath: Path, dataPath: Path) =
         tdmlConfig
           .map {
-            case LaunchArgs.TDMLConfig(_, name, description, path) =>
-              TDMLWrapper.execute(defaultSchemaPath, defaultDataPath, name, description, path)
+            case LaunchArgs.TDMLConfig(action, name, description, path) =>
+              if (action == "execute")
+                TDMLWrapper.execute(defaultSchemaPath, defaultDataPath, name, description, path)
           }
           .getOrElse(defaultSchemaPath -> defaultDataPath)
 
@@ -282,9 +283,7 @@ object Parse {
   val dataDumpSource = DAPodil.Source(Paths.get("data"), Some(DAPodil.Source.Ref(2)))
 
   def debugee(request: Request): EitherNel[String, Resource[IO, DAPodil.Debugee]] =
-    Debugee.LaunchArgs
-      .parse(request.arguments)
-      .map(debugee)
+    Debugee.LaunchArgs.parse(request.arguments).map(debugee)
 
   def debugee(args: Debugee.LaunchArgs): Resource[IO, DAPodil.Debugee] =
     for {

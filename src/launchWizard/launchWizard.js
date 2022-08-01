@@ -56,6 +56,31 @@ function updateInfosetOutputType() {
   }
 }
 
+// Function to update select TDML action
+function updateTDMLAction() {
+  var tdmlSelectionBox = document.getElementById('tdmlAction')
+  var tdmlSelectedValue =
+    tdmlSelectionBox.options[tdmlSelectionBox.selectedIndex].value
+
+  if (tdmlSelectedValue !== 'none') {
+    document.getElementById('tdmlNameLabel').style =
+      'margin-top: 10px; visibility: visible;'
+    document.getElementById('tdmlDescriptionLabel').style =
+      'margin-top: 10px; visibility: visible;'
+  } else {
+    document.getElementById('tdmlNameLabel').style = 'visibility: hidden;'
+    document.getElementById('tdmlDescriptionLabel').style =
+      'visibility: hidden;'
+  }
+
+  if (tdmlSelectedValue === 'generate') {
+    document.getElementById('tdmlPath').style =
+      'margin-top: 10px; visibility: visible;'
+  } else {
+    document.getElementById('tdmlPath').style = 'visibility: hidden;'
+  }
+}
+
 // Function to update config selected, also display name input box if 'New Config' selected
 function updateSelectedConfig() {
   var configSelectionBox = document.getElementById('configSelected')
@@ -101,6 +126,10 @@ function save() {
     'infosetOutputFilePath'
   ).value
   const infosetOutputType = document.getElementById('infosetOutputType').value
+  const tdmlAction = document.getElementById('tdmlAction').value
+  const tdmlName = document.getElementById('tdmlName').value
+  const tdmlDescription = document.getElementById('tdmlDescription').value
+  const tdmlPath = document.getElementById('tdmlPath').value
   const openHexView = document.getElementById('openHexView').checked
   const openInfosetDiffView = document.getElementById(
     'openInfosetDiffView'
@@ -124,6 +153,12 @@ function save() {
         infosetOutput: {
           type: infosetOutputType,
           path: infosetOutputFilePath,
+        },
+        tdmlConfig: {
+          action: tdmlAction,
+          name: tdmlName,
+          description: tdmlDescription,
+          path: tdmlPath,
         },
         trace: trace,
         stopOnEntry: stopOnEntry,
@@ -157,6 +192,20 @@ function updateConfigValues(config) {
   ]
     ? config.infosetOutput['type']
     : config.infosetOutputType
+  document.getElementById('tdmlAction').value = config.tdmlConfig['action']
+    ? config.tdmlConfig['action']
+    : config.tdmlAction
+  document.getElementById('tdmlName').value = config.tdmlConfig['name']
+    ? config.tdmlConfig['name']
+    : config.tdmlName
+  document.getElementById('tdmlDescription').value = config.tdmlConfig[
+    'description'
+  ]
+    ? config.tdmlConfig['description']
+    : config.tdmlDescription
+  document.getElementById('tdmlPath').value = config.tdmlConfig['path']
+    ? config.tdmlConfig['path']
+    : config.tdmlPath
   document.getElementById('openHexView').checked = config.openHexView
   document.getElementById('openInfosetDiffView').checked =
     config.openInfosetDiffView
@@ -167,6 +216,7 @@ function updateConfigValues(config) {
   document.getElementById('useExistingServer').checked =
     config.useExistingServer
   updateInfosetOutputType()
+  updateTDMLAction()
 }
 
 // Function for updating the classpath input box
