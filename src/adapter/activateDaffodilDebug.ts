@@ -46,6 +46,9 @@ function createDebugRunFileConfigs(
 
     if (tdmlAction) {
       tdmlConfig.action = tdmlAction
+      tdmlConfig.name = ''
+      tdmlConfig.description = ''
+      tdmlConfig.path = ''
     }
 
     vscode.debug.startDebugging(
@@ -185,7 +188,7 @@ export function activateDaffodilDebug(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'extension.dfdl-debug.getTMDLName',
+      'extension.dfdl-debug.getTDMLName',
       async (_) => {
         return await vscode.window
           .showInputBox({
@@ -201,7 +204,7 @@ export function activateDaffodilDebug(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'extension.dfdl-debug.getTMDLDescription',
+      'extension.dfdl-debug.getTDMLDescription',
       async (_) => {
         return await vscode.window
           .showInputBox({

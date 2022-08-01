@@ -185,22 +185,23 @@ export async function getDebugger(
         return stopDebugging()
       }
 
-      if (config.tdmlConfig.action !== 'none') {
+      if (config.tdmlAction !== 'none') {
         if (
-          typeof config.tdmlConfig.name !== 'undefined' &&
-          config.tdmlConfig.name === ''
-        ) {
-          config.tdmlConfig.name = await vscode.commands.executeCommand(
+          config.tdmlName === undefined ||
+          config.tdmlName.includes('${command:AskForTDMLName}')
+        )
+          config.tdmlName = await vscode.commands.executeCommand(
             'extension.dfdl-debug.getTDMLName'
           )
-        }
-
-        if (config.tdmlConfig.description === '') {
-          config.tdmlConfig.description = await vscode.commands.executeCommand(
-            'extension.dfdl-debug.getTDMLDescription'
-          )
-        }
       }
+
+      if (
+        config.tdmlDescription === undefined ||
+        config.tdmlDescription.includes('${command:AskForTDMLDescription}')
+      )
+        config.tdmlDescription = await vscode.commands.executeCommand(
+          'extension.dfdl-debug.getTDMLDescription'
+        )
 
       let workspaceFolder = vscode.workspace.workspaceFolders
         ? vscode.workspace.workspaceFolders[0].uri.fsPath
