@@ -46,8 +46,11 @@ import org.apache.daffodil.util.Misc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.util.Try
-import org.apache.commons.io.output.NullOutputStream
 import org.apache.daffodil.tdml.TDMLWrapper
+import org.apache.daffodil.debugger.dap.Parse.Debugee.LaunchArgs.Manual
+import org.apache.daffodil.debugger.dap.Parse.Debugee.LaunchArgs.TDMLConfig.Generate
+import org.apache.daffodil.debugger.dap.Parse.Debugee.LaunchArgs.TDMLConfig.Append
+import org.apache.daffodil.debugger.dap.Parse.Debugee.LaunchArgs.TDMLConfig.Execute
 
 trait Parse {
 
@@ -156,28 +159,21 @@ object Parse {
 
   object Debugee {
 
-    case class LaunchArgs(
-        defaultSchemaPath: Path,
-        defaultDataPath: Path,
-        stopOnEntry: Boolean,
-        infosetOutput: LaunchArgs.InfosetOutput,
-        tdmlConfig: Option[LaunchArgs.TDMLConfig]
-    ) extends Arguments {
-      lazy val (schemaPath: Path, dataPath: Path) =
-        tdmlConfig
-          .map {
-            case LaunchArgs.TDMLConfig(action, name, description, path) =>
-              if (action == "execute")
-                TDMLWrapper.execute(defaultSchemaPath, defaultDataPath, name, description, path)
-          }
-          .getOrElse(defaultSchemaPath -> defaultDataPath)
-
-      def data: IO[InputStream] =
-        IO.blocking(FileUtils.readFileToByteArray(dataPath.toFile))
-          .map(new ByteArrayInputStream(_))
-    }
+    sealed trait LaunchArgs
 
     object LaunchArgs {
+      case class Manual(
+          schemaPath: Path,
+          dataPath: Path,
+          stopOnEntry: Boolean,
+          infosetOutput: LaunchArgs.InfosetOutput
+      ) extends Arguments
+          with LaunchArgs {
+        def data: IO[InputStream] =
+          IO.blocking(FileUtils.readFileToByteArray(dataPath.toFile))
+            .map(new ByteArrayInputStream(_))
+      }
+
       sealed trait InfosetOutput
 
       object InfosetOutput {
@@ -186,106 +182,188 @@ object Parse {
         case class File(path: Path) extends InfosetOutput
       }
 
-      case class TDMLConfig(action: String, name: String, description: String, path: String)
+      sealed trait TDMLConfig extends LaunchArgs
+      object TDMLConfig {
+        case class Generate(
+            schemaPath: Path,
+            dataPath: Path,
+            stopOnEntry: Boolean,
+            infosetOutput: LaunchArgs.InfosetOutput,
+            name: String,
+            description: String,
+            path: String
+        ) extends TDMLConfig
+
+        case class Append(
+            schemaPath: Path,
+            dataPath: Path,
+            stopOnEntry: Boolean,
+            infosetOutput: LaunchArgs.InfosetOutput,
+            name: String,
+            description: String,
+            path: String
+        ) extends TDMLConfig
+
+        case class Execute(
+            stopOnEntry: Boolean,
+            infosetOutput: LaunchArgs.InfosetOutput,
+            name: String,
+            description: String,
+            path: String
+        ) extends TDMLConfig
+      }
 
       def parse(arguments: JsonObject): EitherNel[String, LaunchArgs] =
+        Option(arguments.getAsJsonObject("tdmlConfig")) match {
+          case None             => parseManual(arguments)
+          case Some(tdmlConfig) => parseTDML(arguments, tdmlConfig)
+        }
+
+      def parseManual(arguments: JsonObject): EitherNel[String, LaunchArgs] =
         (
-          Option(arguments.getAsJsonPrimitive("program"))
-            .toRight("missing 'program' field from launch request")
-            .flatMap(path =>
-              Either
-                .catchNonFatal(Paths.get(path.getAsString))
-                .leftMap(t => s"'program' field from launch request is not a valid path: $t")
-                .ensureOr(path => s"program file at $path doesn't exist")(_.toFile().exists())
-            )
-            .toEitherNel,
-          Option(arguments.getAsJsonPrimitive("data"))
-            .toRight("missing 'data' field from launch request")
-            .flatMap(path =>
-              Either
-                .catchNonFatal(Paths.get(path.getAsString))
-                .leftMap(t => s"'data' field from launch request is not a valid path: $t")
-                .ensureOr(path => s"data file at $path doesn't exist")(_.toFile().exists())
-            )
-            .toEitherNel,
+          parseProgram(arguments),
+          parseData(arguments),
           Option(arguments.getAsJsonPrimitive("stopOnEntry"))
             .map(_.getAsBoolean())
             .getOrElse(true)
             .asRight[String]
             .toEitherNel,
-          Option(arguments.getAsJsonObject("infosetOutput")) match {
-            case None => Right(LaunchArgs.InfosetOutput.Console).toEitherNel
-            case Some(infosetOutput) =>
-              Option(infosetOutput.getAsJsonPrimitive("type")) match {
-                case None => Right(LaunchArgs.InfosetOutput.Console).toEitherNel
-                case Some(typ) =>
-                  typ.getAsString() match {
-                    case "none"    => Right(LaunchArgs.InfosetOutput.None).toEitherNel
-                    case "console" => Right(LaunchArgs.InfosetOutput.Console).toEitherNel
-                    case "file" =>
-                      Option(infosetOutput.getAsJsonPrimitive("path"))
-                        .toRight("missing 'infosetOutput.path' field from launch request")
-                        .flatMap(path =>
-                          Either
-                            .catchNonFatal(LaunchArgs.InfosetOutput.File(Paths.get(path.getAsString)))
-                            .leftMap(t => s"'infosetOutput.path' field from launch request is not a valid path: $t")
-                            .ensureOr(file => s"can't write to infoset output file at ${file.path}") { f =>
-                              val file = f.path.toFile
-                              file.canWrite || (!file.exists && file.getParentFile.canWrite)
-                            }
-                        )
-                        .toEitherNel
-                    case invalidType =>
-                      Left(s"invalid 'infosetOutput.type': '$invalidType', must be 'none', 'console', or 'file'").toEitherNel
-                  }
+          parseInfosetOutput(arguments)
+        ).parMapN(LaunchArgs.Manual.apply)
+    }
+
+    def parseTDML(arguments: JsonObject, tdmlConfig: JsonObject): EitherNel[String, LaunchArgs] =
+      Option(tdmlConfig.getAsJsonPrimitive("action")) match {
+        case None         => Left("'action' is required").toEitherNel
+        case Some(action) =>
+          // TODO: use mapN instead of providing default empty values
+          action.getAsString() match {
+            case "generate" | "append" =>
+              (parseProgram(arguments), parseData(arguments), parseInfosetOutput(arguments)).parMapN {
+                (schemaPath, dataPath, infosetOutput) =>
+                  // TODO: handle append case
+                  LaunchArgs.TDMLConfig.Generate(
+                    schemaPath,
+                    dataPath,
+                    stopOnEntry = false,
+                    infosetOutput,
+                    Option(tdmlConfig.getAsJsonPrimitive("name"))
+                      .map(_.getAsString())
+                      .getOrElse("Default Test Case"),
+                    Option(tdmlConfig.getAsJsonPrimitive("description"))
+                      .map(_.getAsString())
+                      .getOrElse("Generated by DFDL VSCode Extension"),
+                    Option(tdmlConfig.getAsJsonPrimitive("path"))
+                      .map(_.getAsString())
+                      .getOrElse("")
+                  )
               }
-          },
-          Option(arguments.getAsJsonObject("tdmlConfig")) match {
-            case None => Right(Option.empty[LaunchArgs.TDMLConfig]).toEitherNel
-            case Some(tdmlConfig) =>
-              Option(tdmlConfig.getAsJsonPrimitive("action")) match {
-                case None => Right(Option.empty[LaunchArgs.TDMLConfig]).toEitherNel
-                case Some(action) =>
-                  action.getAsString() match {
-                    case "none" => Right(Option.empty[LaunchArgs.TDMLConfig]).toEitherNel
-                    case "generate" | "append" | "execute" =>
-                      Right(
-                        // TODO: use mapN instead of providing default empty values
-                        Some(
-                          LaunchArgs.TDMLConfig(
-                            Option(tdmlConfig.getAsJsonPrimitive("action"))
-                              .map(_.getAsString())
-                              .getOrElse("None"),
-                            Option(tdmlConfig.getAsJsonPrimitive("name"))
-                              .map(_.getAsString())
-                              .getOrElse("Default Test Case"),
-                            Option(tdmlConfig.getAsJsonPrimitive("description"))
-                              .map(_.getAsString())
-                              .getOrElse("Generated by DFDL VSCode Extension"),
-                            Option(tdmlConfig.getAsJsonPrimitive("path"))
-                              .map(_.getAsString())
-                              .getOrElse("")
-                          )
-                        )
-                      ).toEitherNel
-                    case invalidType =>
-                      Left(
-                        s"invalid 'tdmlConfig.action': '$invalidType', must be 'none', 'generate', 'append', or 'execute'"
-                      ).toEitherNel
-                  }
+            case "execute" =>
+              parseInfosetOutput(arguments).map { infosetOutput =>
+                LaunchArgs.TDMLConfig.Execute(
+                  stopOnEntry = false,
+                  infosetOutput,
+                  Option(tdmlConfig.getAsJsonPrimitive("name"))
+                    .map(_.getAsString())
+                    .getOrElse("Default Test Case"),
+                  Option(tdmlConfig.getAsJsonPrimitive("description"))
+                    .map(_.getAsString())
+                    .getOrElse("Generated by DFDL VSCode Extension"),
+                  Option(tdmlConfig.getAsJsonPrimitive("path"))
+                    .map(_.getAsString())
+                    .getOrElse("")
+                )
+              }
+            case invalidType =>
+              Left(
+                s"invalid 'tdmlConfig.action': '$invalidType', must be 'none', 'generate', 'append', or 'execute'"
+              ).toEitherNel
+          }
+      }
+
+    def parseProgram(arguments: JsonObject) =
+      Option(arguments.getAsJsonPrimitive("program"))
+        .toRight("missing 'program' field from launch request")
+        .flatMap(path =>
+          Either
+            .catchNonFatal(Paths.get(path.getAsString))
+            .leftMap(t => s"'program' field from launch request is not a valid path: $t")
+            .ensureOr(path => s"program file at $path doesn't exist")(_.toFile().exists())
+        )
+        .toEitherNel
+
+    def parseData(arguments: JsonObject) =
+      Option(arguments.getAsJsonPrimitive("data"))
+        .toRight("missing 'data' field from launch request")
+        .flatMap(path =>
+          Either
+            .catchNonFatal(Paths.get(path.getAsString))
+            .leftMap(t => s"'data' field from launch request is not a valid path: $t")
+            .ensureOr(path => s"data file at $path doesn't exist")(_.toFile().exists())
+        )
+        .toEitherNel
+
+    def parseInfosetOutput(arguments: JsonObject) =
+      Option(arguments.getAsJsonObject("infosetOutput")) match {
+        case None => Right(LaunchArgs.InfosetOutput.Console).toEitherNel
+        case Some(infosetOutput) =>
+          Option(infosetOutput.getAsJsonPrimitive("type")) match {
+            case None => Right(LaunchArgs.InfosetOutput.Console).toEitherNel
+            case Some(typ) =>
+              typ.getAsString() match {
+                case "none"    => Right(LaunchArgs.InfosetOutput.None).toEitherNel
+                case "console" => Right(LaunchArgs.InfosetOutput.Console).toEitherNel
+                case "file" =>
+                  Option(infosetOutput.getAsJsonPrimitive("path"))
+                    .toRight("missing 'infosetOutput.path' field from launch request")
+                    .flatMap(path =>
+                      Either
+                        .catchNonFatal(LaunchArgs.InfosetOutput.File(Paths.get(path.getAsString)))
+                        .leftMap(t => s"'infosetOutput.path' field from launch request is not a valid path: $t")
+                        .ensureOr(file => s"can't write to infoset output file at ${file.path}") { f =>
+                          val file = f.path.toFile
+                          file.canWrite || (!file.exists && file.getParentFile.canWrite)
+                        }
+                    )
+                    .toEitherNel
+                case invalidType =>
+                  Left(s"invalid 'infosetOutput.type': '$invalidType', must be 'none', 'console', or 'file'").toEitherNel
               }
           }
-        ).parMapN(LaunchArgs.apply)
-    }
+      }
   }
 
   val infosetSource = DAPodil.Source(Paths.get("infoset"), Some(DAPodil.Source.Ref(1)))
   val dataDumpSource = DAPodil.Source(Paths.get("data"), Some(DAPodil.Source.Ref(2)))
 
   def debugee(request: Request): EitherNel[String, Resource[IO, DAPodil.Debugee]] =
-    Debugee.LaunchArgs.parse(request.arguments).map(debugee)
+    Debugee.LaunchArgs.parse(request.arguments).map {
+      case args: Debugee.LaunchArgs.Manual => debugee(args)
+      case Debugee.LaunchArgs.TDMLConfig
+            .Generate(schemaPath, dataPath, stopOnEntry, infosetOutput, name, description, tdmlPath) =>
+        // action=generate: create a LaunchArgs.Manual, run the debugee with it, and then generate the TDML file
+        debugee(Debugee.LaunchArgs.Manual(schemaPath, dataPath, stopOnEntry, infosetOutput)).onFinalize(
+          infosetOutput match {
+            case Debugee.LaunchArgs.InfosetOutput.None =>
+              IO.unit // TODO: perhaps guard against this during config parse
+            case Debugee.LaunchArgs.InfosetOutput.Console =>
+              IO.unit // TODO: perhaps guard against this during config parse
+            case Debugee.LaunchArgs.InfosetOutput.File(path) =>
+              IO(TDMLWrapper.generate(path, dataPath, schemaPath, name, description, tdmlPath))
+          }
+        )
+      case _: Debugee.LaunchArgs.TDMLConfig.Append =>
+        // TODO: action=append: create a LaunchArgs.Manual, run the debugee with it, and then append to the existing TDML file
+        ???
+      case Debugee.LaunchArgs.TDMLConfig.Execute(stopOnEntry, infosetOutput, name, description, tdmlPath) =>
+        // action=execute: from the created TDML file, create a LaunchArgs.Manual from the named test, run the debugee with it
+        Resource.eval(IO(TDMLWrapper.execute(name, description, tdmlPath))).flatMap {
+          case (schemaPath, dataPath) =>
+            debugee(Debugee.LaunchArgs.Manual(schemaPath, dataPath, stopOnEntry, infosetOutput))
+        }
+    }
 
-  def debugee(args: Debugee.LaunchArgs): Resource[IO, DAPodil.Debugee] =
+  def debugee(args: Debugee.LaunchArgs.Manual): Resource[IO, DAPodil.Debugee] =
     for {
       data <- Resource.eval(Queue.bounded[IO, Option[DAPodil.Data]](10))
       state <- Resource.eval(Queue.bounded[IO, Option[DAPodil.Debugee.State]](10))
@@ -366,28 +444,6 @@ object Parse {
               case ec                                => Logger[IO].debug(s"deliverParseData: $ec")
             } ++ Stream.eval(
               dapEvents.offer(None) // ensure dapEvents is terminated when the parse is terminated
-            ) ++ Stream.eval(
-              args.tdmlConfig match {
-                case Some(Debugee.LaunchArgs.TDMLConfig(action, name, description, tdmlPath)) =>
-                  if (action == "generate")
-                    args.infosetOutput match {
-                      case Debugee.LaunchArgs.InfosetOutput.File(path) =>
-                        IO(TDMLWrapper.generate(path, args.dataPath, args.schemaPath, name, description, tdmlPath))
-                      case _ =>
-                        IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
-                    }
-                  else if (action == "append")
-                    args.infosetOutput match {
-                      case Debugee.LaunchArgs.InfosetOutput.File(path) =>
-                        IO(TDMLWrapper.append(path, args.dataPath, args.schemaPath, name, description, tdmlPath))
-                      case _ =>
-                        IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
-                    }
-                  else
-                    IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
-                case _ =>
-                  IO(new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM))
-              }
             ),
             infosetChanges
           ).parJoinUnbounded
@@ -654,13 +710,28 @@ object Parse {
   case class ConfigEvent(launchArgs: ConfigEvent.LaunchArgs, buildInfo: ConfigEvent.BuildInfo)
       extends Events.DebugEvent("daffodil.config")
   object ConfigEvent {
-    case class LaunchArgs(
-        schemaPath: String,
-        dataPath: String,
-        stopOnEntry: Boolean,
-        infosetOutput: InfosetOutput,
-        tdmlConfig: Option[TDMLConfig]
-    )
+    sealed trait LaunchArgs
+    object LaunchArgs {
+      case class Manual(
+          schemaPath: String,
+          dataPath: String,
+          stopOnEntry: Boolean,
+          infosetOutput: InfosetOutput
+      ) extends LaunchArgs
+      case class TDMLConfig(action: String, name: String, description: String, path: String) extends LaunchArgs
+
+      object TDMLConfig {
+        def apply(that: Debugee.LaunchArgs.TDMLConfig): TDMLConfig =
+          that match {
+            case Generate(_, _, _, _, name, description, path) =>
+              TDMLConfig("generate", name, description, path)
+            case Append(_, _, _, _, name, description, path) =>
+              TDMLConfig("append", name, description, path)
+            case Execute(_, _, name, description, path) =>
+              TDMLConfig("execute", name, description, path)
+          }
+      }
+    }
 
     sealed trait InfosetOutput {
       val `type`: String =
@@ -674,21 +745,12 @@ object Parse {
       case object None extends InfosetOutput
       case object Console extends InfosetOutput
       case class File(path: String) extends InfosetOutput
-      
+
       def apply(that: Debugee.LaunchArgs.InfosetOutput): InfosetOutput =
         that match {
           case Debugee.LaunchArgs.InfosetOutput.None       => None
           case Debugee.LaunchArgs.InfosetOutput.Console    => Console
           case Debugee.LaunchArgs.InfosetOutput.File(path) => File(path.toString)
-        }
-      }
-    case class TDMLConfig(action: String, name: String, description: String, path: String)
-
-    object TDMLConfig {
-      def apply(that: Debugee.LaunchArgs.TDMLConfig): TDMLConfig =
-        that match {
-          case Debugee.LaunchArgs.TDMLConfig(action, name, description, path) =>
-            TDMLConfig(action, name, description, path)
         }
     }
 
@@ -696,13 +758,17 @@ object Parse {
 
     def apply(launchArgs: Debugee.LaunchArgs): ConfigEvent =
       ConfigEvent(
-        LaunchArgs(
-          launchArgs.schemaPath.toString,
-          launchArgs.dataPath.toString(),
-          launchArgs.stopOnEntry,
-          InfosetOutput(launchArgs.infosetOutput),
-          launchArgs.tdmlConfig.map(ConfigEvent.TDMLConfig.apply)
-        ),
+        launchArgs match {
+          case Manual(schemaPath, dataPath, stopOnEntry, infosetOutput) =>
+            ConfigEvent.LaunchArgs.Manual(
+              schemaPath.toString,
+              dataPath.toString(),
+              stopOnEntry,
+              InfosetOutput(infosetOutput)
+            )
+          case tdmlConfig: Debugee.LaunchArgs.TDMLConfig =>
+            ConfigEvent.LaunchArgs.TDMLConfig(tdmlConfig)
+        },
         BuildInfo(
           DAPBuildInfo.version,
           DAPBuildInfo.daffodilVersion,

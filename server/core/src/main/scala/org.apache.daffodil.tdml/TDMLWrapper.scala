@@ -65,12 +65,8 @@ object TDMLWrapper {
   // 
   // Returns a tuple containing the following (Path to DFDL Schema, Path to Data File)
   // All paths returned could be either relative or absolute - it depends on what exists in the TDML file
-  def execute(schemaPath: Path, dataPath: Path, tdmlName: String, tdmlDescription: String, tdmlPath: String): (Path, Path) = {
+  def execute(tdmlName: String, tdmlDescription: String, tdmlPath: String): (Path, Path) = {
     val (newSchemaPath, newDataPath) = TDML.execute(tdmlName, tdmlDescription, tdmlPath)
-    if (newSchemaPath.length > 0 && newDataPath.length > 0) {
-      return (Paths.get(newSchemaPath), Paths.get(newDataPath))
-    }
-
-    return (schemaPath, dataPath)
+    (Paths.get(newSchemaPath), Paths.get(newDataPath))
   }
 }
