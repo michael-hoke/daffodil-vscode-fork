@@ -42,7 +42,7 @@
     "postbuild": "node -e \"require('./build/scripts/process_build.ts').postbuild()\""
   },
   "dependencies": {
-    "@grpc/grpc-js": "^1.5.4",
+    "@grpc/grpc-js": "^1.7.1",
     "@types/moo": "^0.5.5",
     "await-notify": "1.0.1",
     "child_process": "1.0.2",
