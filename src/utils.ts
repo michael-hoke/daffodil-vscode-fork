@@ -16,10 +16,16 @@
  */
 
 import * as vscode from 'vscode'
+import * as fs from 'fs'
+import * as unzip from 'unzip-stream'
+import * as os from 'os'
+import * as child_process from 'child_process'
+import path from 'path'
+
+const wait_port = require('wait-port')
 
 const defaultConf = vscode.workspace.getConfiguration()
-// const
-let currentConfig: vscode.ProviderResult<vscode.DebugConfiguration>
+let currentConfig: vscode.DebugConfiguration
 
 export const regexp = {
   comma: new RegExp(',', 'g'),
@@ -29,7 +35,7 @@ export const regexp = {
 }
 
 // Function to retrieve to the current debug config
-export function getCurrentConfg() {
+export function getCurrentConfig() {
   return currentConfig
 }
 
@@ -49,7 +55,7 @@ export function runCommand(command: string) {
 // Function for checking if config specifies if either the
 // infoset, infoset diff or hex view needs to be opened
 export async function onDebugStartDisplay(viewsToCheck: string[]) {
-  let config = JSON.parse(JSON.stringify(getCurrentConfg()))
+  let config = JSON.parse(JSON.stringify(getCurrentConfig()))
 
   viewsToCheck.forEach(async (viewToCheck) => {
     switch (viewToCheck) {
@@ -78,8 +84,9 @@ export function getConfig(
   request,
   type,
   program: string = '',
-  data = false,
-  debugServer = false,
+  data: string | boolean = false,
+  debugServer: number | boolean = false,
+  infosetFormat: string | null = null,
   infosetOutput: object | null = null,
   stopOnEntry = false,
   useExistingServer = false,
@@ -100,6 +107,7 @@ export function getConfig(
     debugServer: debugServer
       ? debugServer
       : defaultConf.get('debugServer', 4711),
+    infosetFormat: infosetFormat ? infosetFormat : 'xml',
     infosetOutput: infosetOutput
       ? infosetOutput
       : {
@@ -129,4 +137,103 @@ export function getConfig(
       ? daffodilDebugClasspath
       : defaultConf.get('daffodilDebugClasspath', ''),
   }
+}
+
+export async function unzipFile(zipFilePath: string, extractPath: string) {
+  return await new Promise((resolve, reject) => {
+    let stream = fs
+      .createReadStream(zipFilePath)
+      .pipe(unzip.Extract({ path: `${extractPath}` }))
+    stream.on('close', () => {
+      try {
+        resolve(zipFilePath)
+      } catch (err) {
+        reject(err)
+      }
+    })
+  })
+}
+
+export async function executeScript(
+  name: string,
+  cwd: string,
+  shellPath: string,
+  shellArgs: string[] = []
+) {
+  // Start server in terminal based on scriptName
+  let terminal = vscode.window.createTerminal({
+    name: name,
+    cwd: cwd,
+    hideFromUser: false,
+    shellPath: shellPath,
+    shellArgs: shellArgs,
+  })
+  terminal.show()
+
+  return terminal
+}
+
+/*
+ * Check if OS is windows, if so return windows option else return the mac and linux option.
+ * This method is used to elimate a lot duplicated code we had check if the os was windows related.
+ */
+export function osCheck(winOption: any, macLinOption: any): any {
+  return os.platform().toLowerCase().startsWith('win')
+    ? winOption
+    : macLinOption
+}
+
+export async function killProcess(id: number | undefined) {
+  if (id) {
+    child_process.exec(
+      osCheck(`taskkill /F /PID ${id}`, `kill -9 ${id} 2>&1 || echo 0`)
+    )
+  }
+}
+
+export const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
+
+export function chmodScript(scriptPath: string, scriptName: string) {
+  if (!os.platform().toLowerCase().startsWith('win')) {
+    child_process.execSync(
+      `chmod +x ${scriptPath.replace(' ', '\\ ')}/bin/${scriptName.replace(
+        './',
+        ''
+      )}`
+    )
+  }
+}
+
+export async function runScript(
+  scriptPath: string,
+  scriptName: string,
+  shellPath: string | null = null,
+  shellArgs: string[] = [],
+  env:
+    | {
+        [key: string]: string | null | undefined
+      }
+    | undefined = undefined,
+  type: string = '',
+  hideTerminal: boolean = false
+) {
+  chmodScript(scriptPath, scriptName)
+
+  // Start server in terminal based on scriptName
+  let terminal = vscode.window.createTerminal({
+    name: scriptName,
+    cwd: path.join(scriptPath, 'bin'),
+    hideFromUser: false,
+    shellPath: shellPath !== null ? shellPath : scriptName,
+    shellArgs: shellArgs,
+    env: env,
+  })
+
+  if (!hideTerminal) terminal.show()
+
+  type.includes('daffodil')
+    ? await delay(5000).then(() => {})
+    : await wait_port({ host: '127.0.0.1', port: 9000, output: 'silent' })
+
+  return terminal
 }

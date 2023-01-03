@@ -16,7 +16,7 @@
  */
 
 import { LIB_VERSION } from '../version'
-import * as os from 'os'
+import { osCheck } from '../utils'
 
 export class Backend {
   constructor(readonly owner: string, readonly repo: string) {}
@@ -36,27 +36,14 @@ export class Artifact {
       ? `${type}-${this.version}-${LIB_VERSION}`
       : `${type}-${this.version}`
     this.archive = `${this.name}.zip`
-    this.scriptName =
-      os.platform() === 'win32'
-        ? `${baseScriptName}.bat`
-        : `./${baseScriptName}`
+    this.scriptName = osCheck(`${baseScriptName}.bat`, `./${baseScriptName}`)
   }
 
   archiveUrl = (backend: Backend) => {
-    if (this.type === 'omega-edit') {
+    if (this.type.includes('omega-edit')) {
       return `https://github.com/${backend.owner}/${backend.repo}/releases/download/v${this.version}/${this.archive}`
     } else {
       return ''
-    }
-  }
-
-  getOsFolder() {
-    if (os.platform().toLowerCase().startsWith('win')) {
-      return 'windows'
-    } else if (os.platform().toLowerCase().startsWith('darwin')) {
-      return 'macos'
-    } else {
-      return 'linux'
     }
   }
 }

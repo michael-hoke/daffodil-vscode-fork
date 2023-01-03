@@ -101,11 +101,7 @@ export class DebuggerHexView {
   // Overriden onTerminatedDebugSession method
   onTerminatedDebugSession(session: vscode.DebugSession) {
     if (session.type === 'dfdl') {
-      vscode.window.visibleTextEditors.forEach((editior) => {
-        if (editior.document.fileName === this.hexFile) {
-          editior.hide() // method is deprecated but is only way to close specific editor not just the active one
-        }
-      })
+      this.decorator.dispose()
       this.dataFile = ''
       this.bytePos1b = -1
     }
@@ -254,9 +250,9 @@ export class DebuggerHexView {
         for (var i = 1; i < dataLocations.length - 2; i++) {
           let middle = Math.floor(dataLocations[i].length / 2)
           this.hexString +=
-            dataLocations[i].substr(0, middle).toUpperCase() +
+            dataLocations[i].substring(0, middle).toUpperCase() +
             ' ' +
-            dataLocations[i].substr(middle).toUpperCase() +
+            dataLocations[i].substring(middle).toUpperCase() +
             ' '
         }
         this.hexString += '\t' + dataLocations[dataLocations.length - 1] + '\n'

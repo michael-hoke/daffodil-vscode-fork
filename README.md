@@ -20,15 +20,16 @@
 
 <img src="https://daffodil.apache.org/assets/themes/apache/img/apache-daffodil-logo.png" height="85" alt="Apache Daffodil"/>
 
-# Apache Daffodil VS Code Extension
+# Apache Daffodil™ Extension for Visual Studio Code
 
 [![CI](https://github.com/apache/daffodil-vscode/workflows/CI/badge.svg)](https://github.com/apache/daffodil-vscode/actions/workflows/CI.yml)
 
 </div>
 
-This is a VS Code extension which enables the interactive debugging of DFDL schema parsing using [Apache Daffodil](https://daffodil.apache.org/).
+This is an extension for Visual Studio Code (VS Code) which enables the interactive debugging of DFDL schema parsing using [Apache Daffodil](https://daffodil.apache.org/).
 
 ## Build Requirements
+
 - Java Development Kit (JDK) 11 or higher
 - SBT 0.13.8 or higher
 - Node 10 or higher
@@ -38,15 +39,16 @@ This is a VS Code extension which enables the interactive debugging of DFDL sche
 
 Until the extension is available in the [VS Code Extension Marketplace](https://marketplace.visualstudio.com/vscode), please download the latest `.vsix` file from the [releases page](https://github.com/apache/daffodil-vscode/releases).
 
+## Package VSIX and Debugger
 
-## Build VSIX and Debugger
 :exclamation:**NOT necessary if using prebuilt VSIX**:exclamation:
 
 :exclamation:**NOT necessary if running extension via VS Code without VSIX but a `yarn install` will be required**:exclamation:
 
-Run full build
+Run full package
+
   ```bash
-  yarn build
+  yarn package
   ```
 
 * This command performs the following tasks:
@@ -57,20 +59,18 @@ Run full build
   * Creates Files
     ```
     server/core/target/universal/daffodil-debugger-*.zip
-    daffodil-debugger-*.vsix
+    apache-daffodil-vscode-*.vsix
     ```
 
 ## Running Debug Server
 
-The debug server will automatically be ran by the extension unless `useExistingServer` is to set to `true` inside of `.vscode/launch.json`
+The debug server will automatically be run by the extension unless `useExistingServer` is to set to `true` inside of `.vscode/launch.json`
 
-If you wish to ran the debug server manually the scripts to do so are at the following locations:
+If you wish to run the debug server manually the scripts to do so are at the following locations:
 * Debugging through VS Code with or without VSIX:
   * Linux = `/home/USERNAME/.local/share/daffodil-dap`
   * Mac = `/Users/USERNAME/Library/Application\ Support/daffodil-dap`
   * Windows = `C:\\Users\\USERNAME\\AppData\\Roaming\\daffodil-dap`
-  
-
 
 ## Installation
 
@@ -82,7 +82,7 @@ Once you have either downloaded the VSIX file or created it you can now install 
 
 * Via command line
   ```bash
-  code --install-extension daffodil-debugger-*.vsix
+  code --install-extension apache-daffodil-vscode-*.vsix
   ```
 
 ## Usage
@@ -97,7 +97,7 @@ users@daffodil.apache.org mailing lists.  You can report bugs via
 
 ## License
 
-Apache Daffodil VS Code Extension is licensed under the [Apache License, v2.0].
+Apache Daffodil™ Extension for Visual Studio Code is licensed under the [Apache License, v2.0].
 
 [Apache License, v2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [GitHub Issues]: https://github.com/apache/daffodil-vscode/issues

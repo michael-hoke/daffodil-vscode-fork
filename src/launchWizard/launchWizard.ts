@@ -17,8 +17,7 @@
 
 import * as vscode from 'vscode'
 import * as fs from 'fs'
-import { getConfig } from '../utils'
-import * as os from 'os'
+import { getConfig, osCheck } from '../utils'
 
 const defaultConf = getConfig('Wizard Config', 'launch', 'dfdl')
 
@@ -53,10 +52,10 @@ async function createUpdateConfigFile(data, updateOrCreate) {
     fs.mkdirSync(`${rootPath}/.vscode`)
   }
 
-  const launchPath =
-    os.platform() === 'win32'
-      ? `/${rootPath}/.vscode/launch.json`
-      : `${rootPath}/.vscode/launch.json`
+  const launchPath = osCheck(
+    `/${rootPath}/.vscode/launch.json`,
+    `${rootPath}/.vscode/launch.json`
+  )
 
   // Create launch.json if it doesn't exist already
   if (!fs.existsSync(`${rootPath}/.vscode/launch.json`)) {
@@ -334,6 +333,18 @@ class LaunchWizard {
       daffodilDebugClasspathAction !== 'append' ? 'checked' : ''
     let appendCheck = daffodilDebugClasspathAction === 'append' ? 'checked' : ''
 
+    let infosetFormatSelect = ''
+    let infosetFormatTypes = ['xml', 'json']
+    let infosetFormat = defaultValues.infosetFormat
+
+    infosetFormatTypes.forEach((type) => {
+      if (type === infosetFormat) {
+        infosetFormatSelect += `<option selected value="${type}">${type}</option>`
+      } else {
+        infosetFormatSelect += `<option value="${type}">${type}</option>`
+      }
+    })
+
     let infosetOutputTypeSelect = ''
     let infosetOutputTypes = ['none', 'console', 'file']
     let infosetOutputType = defaultValues.infosetOutput['type']
@@ -385,7 +396,7 @@ class LaunchWizard {
       <script nonce="${nonce}">
         ${scriptData}
       </script>
-      <h2 style="color: white;">Daffodil Debugger Config Settings</h2>
+      <h2 style="color: inherit;">Daffodil Debugger Config Settings</h2>
 
       <div id="configSelectionDropDown" class="setting-div">
         <p>Launch Config:</p>
@@ -428,6 +439,14 @@ class LaunchWizard {
         <p>Debug Server:</p>
         <p class="setting-description">Port debug server running on.</p>
         <input class="file-input" value="${defaultValues.debugServer}" id="debugServer"/>
+      </div>
+
+      <div id="infosetFormatDiv" class="setting-div">
+        <p>Infoset Format:</p>
+        <p class="setting-description">Desired format of infoset ('xml' | 'json')</p>
+        <select class="file-input" style="width: 200px;" id="infosetFormat">
+          ${infosetFormatSelect}
+        </select>
       </div>
 
       <div id="infosetOutputTypeDiv" class="setting-div">
