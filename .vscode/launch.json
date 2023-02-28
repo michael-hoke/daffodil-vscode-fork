@@ -72,7 +72,7 @@
 		{
 			"type": "scala",
 			"request": "launch",
-			"name": "DAPodil",
+			"name": "Daffodil Debug Server",
 			"mainClass": "org.apache.daffodil.debugger.dap.DAPodil",
 			"args": [],
 			"jvmOptions": [],
