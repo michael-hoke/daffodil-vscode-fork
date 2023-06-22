@@ -18,6 +18,7 @@
 package org.apache.daffodil.tdml
 
 import java.nio.file._
+import java.io.File
 
 object TDML {
   // Create a ParserTestCaseType object that can be put into a TestSuite
@@ -239,9 +240,10 @@ object TDML {
   // All paths returned could be either relative or absolute - it depends on what exists in the TDML file
   def execute(tdmlName: String, tdmlDescription: String, tdmlPath: String): Option[(Path, Path)] = {
     unused(tdmlDescription)
-
+    
+    val f = new File(tdmlPath)
     for {
-      ptc <- new Runner(tdmlPath).getTS.testCaseMap.get(tdmlName)
+      ptc <- new Runner(f.toURI()).getTS.testCaseMap.get(tdmlName)
       doc <- ptc.document
       file <- doc.documentParts.collectFirst { case fp: FileDocumentPart => fp }
     } yield {

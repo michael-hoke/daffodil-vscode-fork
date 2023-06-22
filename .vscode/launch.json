@@ -30,6 +30,13 @@
 				"type": "file",
 				"path": "${workspaceFolder}/infoset.xml"
 			},
+			"tdmlConfig": {
+				"action": "execute",
+				"name": "csv_test",
+				"description": "csv test",
+				//"path": "${command:AskForTDMLPath}"
+				"path": "${workspaceFolder}/csv.tdml"
+			},
 			"debugServer": 4711,
 			"openHexView": false,
 			"openInfosetView": false,
